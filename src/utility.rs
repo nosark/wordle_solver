@@ -3,11 +3,7 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
-/// This will be the dictionary used to play the game
-/// not only to retrieve a word that becomes our "answer"
-/// but to also guarentee the user can't waste guesses on
-/// irrelevant words.
-///const WORDS: &str = include_str!("../res/dictionary.txt");
+use rand::{thread_rng, Rng};
 
 // Simple utility function.
 // used this function to strip unwanted numbers from original dictionary file.
@@ -33,4 +29,13 @@ pub fn filter_text_from_file(
     }
 
     Ok(())
+}
+
+pub fn grab_rand_word_as_slice(dictionary: &str) -> &str {
+    let mut rng = thread_rng();
+    let rand_num = rng.gen_range(0..dictionary.len());
+    let rand_remainder = rand_num % 5;
+    let diff = rand_num - rand_remainder;
+    let test_slice = &dictionary[diff..diff+5];
+    test_slice
 }

@@ -58,24 +58,39 @@ pub struct Agent {
 #[derive(Debug)]
 pub struct PlayerFactory {}
 
-impl Guesser for Player {}
-impl Guesser for Agent {}
+impl Guesser for Player {
+    fn guess(&mut self, answer: &'static str) {
+        println!("im a player")
+    }
+}
+impl Guesser for Agent {
+    fn guess(&mut self, answer: &'static str) {
+        println!("im a bot")
+    }
+}
 
 impl PlayerFactory {
-    pub fn get() {
-        unimplemented!()
+    pub fn new_player(is_agent: bool) -> Box<dyn Guesser> {
+        match is_agent {
+            false => Box::new(Player {wins: 0, losses: 0}),
+            true => Box::new(Agent {wins: 0, losses: 0})
+        }
     }
 }
 
 pub trait Guesser {
-    fn guess(&mut self, answer: &'static str) {
-        unimplemented!()
-    }
+    fn guess(&mut self, answer: &'static str);
 }
 
 /// The play function allows the user to attempt six guesses to
 /// try and guess the answer the game has selected from the dictionary.
 /// the guesser can be a real user or an agent that plays the game itself.
 pub fn play<G: Guesser>(answer: &'static str, guesser: G) {
-    unimplemented!()
+    let guesses = 0;
+    loop {
+        if guesses == 6 {
+            break;
+        }
+    }
+    println!("Thank you for playing!");
 }
