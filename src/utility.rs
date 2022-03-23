@@ -1,17 +1,15 @@
+use rand::{thread_rng, Rng};
 use std::error::Error;
 use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
-use rand::{thread_rng, Rng};
+
 
 // Simple utility function.
 // used this function to strip unwanted numbers from original dictionary file.
 #[allow(dead_code)]
-pub fn filter_text_from_file(
-    file_path: &Path,
-    new_file_path: &Path,
-) -> Result<(), Box<dyn Error>> {
+pub fn filter_text_from_file(file_path: &Path, new_file_path: &Path) -> Result<(), Box<dyn Error>> {
     let mut count = 0;
     let mut file = OpenOptions::new()
         .write(true)
@@ -31,11 +29,39 @@ pub fn filter_text_from_file(
     Ok(())
 }
 
-pub fn grab_rand_word_as_slice(dictionary: &str) -> &str {
-    let mut rng = thread_rng();
-    let rand_num = rng.gen_range(0..dictionary.len());
-    let rand_remainder = rand_num % 5;
-    let diff = rand_num - rand_remainder;
-    let test_slice = &dictionary[diff..diff+5];
-    test_slice
+/// Grabs a slice from a &str, randomly selecting a word from 
+/// the dictionary.
+pub fn grab_rand_word_from_dict(dictionary: &str) -> &str {
+    let words: Vec<&str> = dictionary.split_whitespace().collect();
+    let rand_num = thread_rng().gen_range(0..words.len());
+    words[rand_num]
+}
+
+#[cfg(test)]
+mod test {
+    use super::grab_rand_word_from_dict;
+
+    const WORDS: &str = include_str!("../res/dictionary.txt");
+    const TEST_WORDS: &str = include_str!("../res/tests/slice_grab_test.txt");
+
+
+    #[test]
+    pub fn grab_random_word_as_slice() {
+        unimplemented!()
+    }
+
+    #[test]
+    pub fn grab_random_word_vec() {
+        let words: Vec<&str> = TEST_WORDS.split_whitespace().collect();
+        
+        let sample_word = grab_rand_word_from_dict(&TEST_WORDS);
+        let mut words_match = [""; 2];
+        for &word in &words {
+            println!("{}", word);
+            if word.trim().eq(sample_word.trim()) {
+                words_match = [&word, &sample_word];
+            }
+        }
+        assert_eq!(words_match, [sample_word, sample_word]);
+    }
 }
