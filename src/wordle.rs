@@ -1,7 +1,9 @@
-use std::{vec};
-use std::{io::stdin, collections::HashMap};
-use std::collections::hash_map::Entry;
+#[allow(dead_code, unused)]
 use colored::Colorize;
+use std::collections::hash_map::Entry;
+use std::error::Error;
+use std::vec;
+use std::{collections::HashMap, io::stdin};
 /// Enum represents assigned score values to each letter
 /// in relation to a guess. Each guess can have a score of :
 /// Correct : The letter is a subset of the answer and in the correct position.
@@ -21,7 +23,7 @@ pub enum Correctness {
 /// our previous guesses made for the lifetime of the game/round.
 #[derive(Debug)]
 pub struct GuessHistory {
-    guesses: Vec<Guess>,
+    guesses: Vec<Box<Guess>>,
 }
 
 /// A Guess represents an attempt to match a word to the secret
@@ -38,8 +40,8 @@ pub struct Guess {
 }
 
 impl Guess {
-    pub fn new(word: String, mask:[Correctness; 5]) -> Self {
-        Guess{ word, mask }
+    pub fn new(word: String, mask: [Correctness; 5]) -> Self {
+        Guess { word, mask }
     }
 }
 
@@ -51,99 +53,117 @@ pub enum PlayerType {
 
 /// The Player struct can be utilized as an actual human player,
 /// or you can use it to implement an AI agent of your choosing.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Player {
     wins: i32,
     losses: i32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Agent {
     wins: i32,
     losses: i32,
     //algorithm: todo!(),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct PlayerFactory {}
 
-impl Guesser for Player {
-    fn guess(&mut self, answer: &'static str) {
-
-        let mut pos = 0;
-        let mut string_lookup = HashMap::<char, Vec<i32>>::new();
-        for x in answer.chars() {
-            match string_lookup.entry(x) {
-                Entry::Vacant(e) => { 
-                    e.insert(vec![pos]);
-                }
-                Entry::Occupied(mut e) => {
-                    e.get_mut().push(pos);
-                }
-            }
-            pos += 1;
-        }
-
-        println!("Please submit a 5 letter word: ");
-        let mut correct_vec = [Correctness::Wrong;  5];
-        let mut user_input = String::new();
-        stdin().read_line(&mut user_input)
+macro_rules! get_input {
+    ($i:ident) => {
+        stdin()
+            .read_line(&mut $i)
             .ok()
             .expect("failed to read input");
+    };
+}
 
-        let mut guess_pos = 0;
-        for i in user_input.chars() {
-            if guess_pos == 5 {
-                break;
-            }
-            match string_lookup.entry(i) {
-                
-                Entry::Occupied(e) => {
-                    // check the position so we can populate mask correctness
-                    let vec_positions = e.get();
-                    for i in 0..vec_positions.len() {
-                        if vec_positions[i] as i32 == guess_pos {
-                            correct_vec[guess_pos as usize] = Correctness::Correct;
-                        } else {
-                            // none of the logged positions were equal, so partial correct
-                            correct_vec[guess_pos as usize] = Correctness::Misplaced;
-                        }
-                    }
-                }
+impl Guesser for Player {
+    fn guess(&mut self, answer: &'static str) -> Result<Box<Guess>, Box<dyn Error>> {
+        let mut _correct_vec = [Correctness::Wrong; 5];
+        let mut user_input = String::new();
+        get_input!(user_input);
+        let guess_value = Box::new(Guess {
+            word: user_input.to_owned(),
+            mask: _correct_vec.to_owned(),
+        });
+        Ok(guess_value)
+    }
+}
 
-                Entry::Vacant(_e) => {
-                    // mark mask as wrong
-                    correct_vec[guess_pos as usize] = Correctness::Wrong;
-                }
+pub fn evalute<'a>(mut guess: &'a mut Box<Guess>, answer: &'static str) -> &'a Box<Guess> {
+    let mut pos = 0;
+    let mut string_lookup = HashMap::<char, Vec<i32>>::new();
+    for x in answer.chars() {
+        match string_lookup.entry(x) {
+            Entry::Vacant(e) => {
+                e.insert(vec![pos]);
             }
-            guess_pos += 1;
+            Entry::Occupied(mut e) => {
+                e.get_mut().push(pos);
+            }
         }
-
-        // Color the letters and display to user.
-        let mut i = 0;
-        for c in user_input.chars() {
-            if i == 5 {
-                break;
-            }
-            match correct_vec[i as usize] {
-                Correctness::Correct => print!("{} ", c.to_string().green()),
-                Correctness::Misplaced => print!("{} ", c.to_string().yellow()),
-                Correctness::Wrong => print!("{} ", c.to_string().white())
-            }
-            i += 1;
-        }
-
-        // Displays correctness mask. delete later.
-        println!("{:?}", correct_vec);
-
+        pos += 1;
     }
 
+    //evaluate guess
+    let mut guess_pos: i8 = 0;
+    for i in guess.word.chars() {
+        if guess_pos == 5 {
+            break;
+        }
+        match string_lookup.entry(i) {
+            Entry::Occupied(mut e) => {
+                // check the position so we can populate mask correctness
+                let vec_positions = e.get_mut();
+                if vec_positions.len() == 0 {
+                    guess.mask[guess_pos as usize] = Correctness::Wrong;
+                    break;
+                }
+                for i in 0..vec_positions.len() {
+                    if vec_positions[i] as i8 == guess_pos {
+                        guess.mask[guess_pos as usize] = Correctness::Correct;
+                        vec_positions.swap_remove(i);
+                    } else {
+                        // none of the logged positions were equal, so partial correct
+                        guess.mask[guess_pos as usize] = Correctness::Misplaced;
+                    }
+                }
+            }
+
+            Entry::Vacant(_e) => {
+                // mark mask as wrong
+                guess.mask[guess_pos as usize] = Correctness::Wrong;
+            }
+        }
+        guess_pos += 1;
+    }
+
+    guess
+}
+
+pub fn display_answer_correctness_to_console(guess: &Box<Guess>) {
+    // Color the letters and display to user.
+    let mut i: i8 = 0;
+    for c in guess.word.chars() {
+        if i == 5 {
+            break;
+        }
+        match guess.mask[i as usize] {
+            Correctness::Correct => print!("{} ", c.to_string().green()),
+            Correctness::Misplaced => print!("{} ", c.to_string().yellow()),
+            Correctness::Wrong => print!("{} ", c.to_string().white()),
+        }
+        i += 1;
+    }
+
+    // Displays correctness mask. delete later.
+    println!("{:?}", guess.mask);
 }
 
 impl Guesser for Agent {
-    #[allow(dead_code, unused)]
-    fn guess(&mut self, answer: &'static str) {
-        println!("im a bot")
+    fn guess(&mut self, answer: &'static str) -> Result<Box<Guess>, Box<dyn Error>> {
+        unimplemented!()
     }
 }
 
@@ -157,7 +177,7 @@ impl PlayerFactory {
 }
 
 pub trait Guesser {
-    fn guess(&mut self, answer: &'static str);
+    fn guess(&mut self, answer: &'static str) -> Result<Box<Guess>, Box<dyn Error>>;
 }
 
 /// The play function allows the user to attempt six guesses to
@@ -165,19 +185,34 @@ pub trait Guesser {
 /// the guesser can be a real user or an agent that plays the game itself.
 pub fn play(answer: &'static str, mut guesser: Box<dyn Guesser>) {
     let mut guesses = 0;
+    let mut guess_history = GuessHistory {
+        guesses: Vec::<Box<Guess>>::new(),
+    };
+    println!(
+        "
+        This is Not WOrdle, where you will have 6 attempts to guess\n
+        the secret word. You are only allowed to guess words in this 5\n
+        letter word dictionary. If you get a letter correct, but out of position\n
+        it will be marked in yellow, if you get the letter and position correct\n
+        in green, and white if the letter is completely incorrect.\n
+
+        Good Luck and Start Guessing!
+    "
+    );
+
     loop {
         if guesses == 6 {
             println!("the word was: {}", answer);
             break;
         }
-        guesser.guess(answer);
+        let mut current_guess = guesser.guess(answer).expect("failed to construct guess");
+        evalute(&mut current_guess, answer);
+        display_answer_correctness_to_console(&current_guess);
+        guess_history.guesses.push(current_guess);
         guesses += 1;
     }
     println!("Thank you for playing!");
 }
 
-
 #[cfg(test)]
-mod test {
-    
-}
+mod test {}
