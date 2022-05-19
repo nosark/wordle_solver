@@ -9,7 +9,7 @@ use wordle_solver::wordle::PlayerFactory;
 const WORDS: &str = include_str!("../res/answers.txt");
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let random_word = grab_rand_word_from_dict(&WORDS);
+    let random_word = grab_rand_word_from_dict(WORDS);
     let guesser = PlayerFactory::new_player(false);
     wordle_solver::wordle::play(random_word, guesser);
     Ok(())
