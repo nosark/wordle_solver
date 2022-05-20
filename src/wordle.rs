@@ -29,13 +29,36 @@ impl Correctness {
     pub fn compute(answer: String, guess: String) -> [Correctness;5] {
         let mut mask = [Correctness::Wrong; 5];
         let mut index = 0;
+        let mut string_histogram = HashMap::<char, i32>::new();
+        for i in answer.chars() {
+            match string_histogram.entry(i) {
+                Entry::Occupied(mut e) => {
+                
+                    *e.get_mut() += 1;
+                }
+
+                Entry::Vacant(e) => {
+                    e.insert(1);
+                }
+            }
+        }
+
+
         for (i, j) in answer.chars().zip(guess.chars()) {
             if i == j {
                 mask[index as usize] = Correctness::Correct;
+                println!("{}", j);
             } else {
-                match answer.contains(j) {
-                    true => { mask[index as usize] = Correctness::Misplaced; },
-                    false => { break },
+                match string_histogram.entry(j) {
+                    Entry::Occupied(mut e) => {
+                        if *e.get() > 0 {
+                            println!("looking in table {}", j);
+                            mask[index as usize] = Correctness::Misplaced;
+                            *e.get_mut() -= 1;
+                        }
+                    }
+
+                    Entry::Vacant(_e) => { continue; }
                 }
             }
 
@@ -262,7 +285,7 @@ mod tests {
         fn repeat_letters_guess() {
             let mut guess = Guess {word: String::from("lllrr"), mask: [Correctness::Wrong; 5]};
             guess.mask = Correctness::compute(guess.word, String::from("sally"));
-            assert_eq!(guess.mask, [Correctness::Misplaced, Correctness::Misplaced, Correctness::Wrong, Correctness::Wrong, Correctness::Wrong]);
+            assert_eq!(guess.mask, [Correctness::Correct, Correctness::Misplaced, Correctness::Wrong, Correctness::Wrong, Correctness::Wrong]);
         }
 
     }
