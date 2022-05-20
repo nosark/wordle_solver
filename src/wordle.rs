@@ -2,7 +2,7 @@
 use colored::Colorize;
 use std::collections::hash_map::Entry;
 use std::error::Error;
-use std::vec;
+use std::{vec, string};
 use std::{collections::HashMap, collections::HashSet, io::stdin};
 /// Enum represents assigned score values to each letter
 /// in relation to a guess. Each guess can have a score of :
@@ -44,15 +44,14 @@ impl Correctness {
         }
 
 
+
         for (i, j) in answer.chars().zip(guess.chars()) {
-            if i == j {
+            if i == j && *string_histogram.get(&j).unwrap() > 0 {               
                 mask[index as usize] = Correctness::Correct;
-                println!("{}", j);
             } else {
                 match string_histogram.entry(j) {
                     Entry::Occupied(mut e) => {
                         if *e.get() > 0 {
-                            println!("looking in table {}", j);
                             mask[index as usize] = Correctness::Misplaced;
                             *e.get_mut() -= 1;
                         }
@@ -284,8 +283,8 @@ mod tests {
         #[test]
         fn repeat_letters_guess() {
             let mut guess = Guess {word: String::from("lllrr"), mask: [Correctness::Wrong; 5]};
-            guess.mask = Correctness::compute(guess.word, String::from("sally"));
-            assert_eq!(guess.mask, [Correctness::Correct, Correctness::Misplaced, Correctness::Wrong, Correctness::Wrong, Correctness::Wrong]);
+            guess.mask = Correctness::compute(String::from("sally"), guess.word);
+            assert_eq!(guess.mask, [Correctness::Misplaced, Correctness::Misplaced, Correctness::Wrong, Correctness::Wrong, Correctness::Wrong]);
         }
 
     }
