@@ -1,8 +1,7 @@
-#[allow(dead_code, unused)]
 use colored::Colorize;
 use std::collections::hash_map::Entry;
 use std::error::Error;
-use std::{vec, string};
+use std::vec;
 use std::{collections::HashMap, collections::HashSet, io::stdin};
 /// Enum represents assigned score values to each letter
 /// in relation to a guess. Each guess can have a score of :
@@ -19,14 +18,19 @@ pub enum Correctness {
     Wrong,
 }
 
-/*
-macro_rules! expect_mask! {
-    ($a:expr, $b:expr) => {
-        
-    };
-} */
+
+macro_rules! mask {
+    (C) => { Correctness::Correct };
+    (M) => { Correctness::Misplaced };
+    (W) => { Correctness::Wrong };
+
+    ($($c:tt)+) => {[
+        $(mask!($c)),+
+    ]}
+}
+
 impl Correctness {
-    pub fn compute(answer: String, guess: String) -> [Correctness;5] {
+    pub fn compute(answer: &str, guess: &str) -> [Correctness;5] {
         let mut mask = [Correctness::Wrong; 5];
         let mut index = 0;
         let mut string_histogram = HashMap::<char, i32>::new();
@@ -207,11 +211,11 @@ pub fn display_answer_correctness_to_console(guess: &Box<Guess>) {
 }
 
 impl Guesser for Agent {
-    fn guess(&mut self, answer: &'static str) -> Result<Box<Guess>, Box<dyn Error>> {
+    fn guess(&mut self, _answer: &'static str) -> Result<Box<Guess>, Box<dyn Error>> {
         unimplemented!()
     }
 
-    fn rate_words_by_bits_of_info(&mut self, dictionary: &'static str) -> HashSet<String, f64> {
+    fn rate_words_by_bits_of_info(&mut self, _dictionary: &'static str) -> HashSet<String, f64> {
         unimplemented!()
     }
 }
@@ -271,21 +275,30 @@ mod tests {
     mod correctness {
 
     use crate::wordle::Correctness;
-    use crate::wordle::Guess;
 
         #[test]
         fn regular_guess() {
-            let mut guess = Guess {word: String::from("abcde"), mask: [Correctness::Wrong; 5]};
-            guess.mask = Correctness::compute(guess.word,  String::from("abcde"));                                 
-            assert_eq!(guess.mask, [Correctness::Correct, Correctness::Correct, Correctness::Correct, Correctness::Correct, Correctness::Correct]);
+            assert_eq!(Correctness::compute("abcde", "abcde"), mask![C C C C C]);
         }
 
         #[test]
         fn repeat_letters_guess() {
-            let mut guess = Guess {word: String::from("lllrr"), mask: [Correctness::Wrong; 5]};
-            guess.mask = Correctness::compute(String::from("sally"), guess.word);
-            assert_eq!(guess.mask, [Correctness::Misplaced, Correctness::Misplaced, Correctness::Wrong, Correctness::Wrong, Correctness::Wrong]);
+            assert_eq!(Correctness::compute("sally", "lllrr"), mask![M M W W W]);
+        }
+        
+        #[test]
+        fn all_misplaced() {
+            assert_eq!(Correctness::compute("edcba", "acbde"), mask![M M M M M]);
         }
 
+        #[test]
+        fn two_correct_repeats_rest_misplace() {
+            assert_eq!(Correctness::compute("aaedc", "aadce"), mask![C C M M M]);
+        }
+
+        #[test]
+        fn all_wrong() {
+            assert_eq!(Correctness::compute("abcde", "fhjki"), mask![W W W W W]);
+        }
     }
 }
