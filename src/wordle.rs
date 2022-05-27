@@ -1,7 +1,6 @@
 use colored::Colorize;
 use std::collections::hash_map::Entry;
 use std::error::Error;
-use std::vec;
 use std::{collections::HashMap, collections::HashSet, io::stdin};
 /// Enum represents assigned score values to each letter
 /// in relation to a guess. Each guess can have a score of :
@@ -18,7 +17,20 @@ pub enum Correctness {
     Wrong,
 }
 
-
+/// This macro allows us to cleanly represent masks as
+/// an array of initials / tokens that represent Correctness
+/// enums without all the code clutter.
+/// so instead of:
+///     [Correctness::Correct, Correctness::Correct, Correctness::Correct, Correctness::Correct,
+///         Correctness::Correct];
+///
+/// we get:
+///
+///     [C C C C C]
+///
+/// where both arrays are equal to each other, using the shorthand out of code
+/// cleanliness and readability.
+///
 macro_rules! mask {
     (C) => { Correctness::Correct };
     (M) => { Correctness::Misplaced };
@@ -30,14 +42,13 @@ macro_rules! mask {
 }
 
 impl Correctness {
-    pub fn compute(answer: &str, guess: &str) -> [Correctness;5] {
+    pub fn compute(answer: &str, guess: &str) -> [Correctness; 5] {
         let mut mask = [Correctness::Wrong; 5];
         let mut index = 0;
         let mut string_histogram = HashMap::<char, i32>::new();
         for i in answer.chars() {
             match string_histogram.entry(i) {
                 Entry::Occupied(mut e) => {
-                
                     *e.get_mut() += 1;
                 }
 
@@ -47,10 +58,8 @@ impl Correctness {
             }
         }
 
-
-
         for (i, j) in answer.chars().zip(guess.chars()) {
-            if i == j && *string_histogram.get(&j).unwrap() > 0 {               
+            if i == j && *string_histogram.get(&j).unwrap() > 0 {
                 mask[index as usize] = Correctness::Correct;
             } else {
                 match string_histogram.entry(j) {
@@ -61,13 +70,32 @@ impl Correctness {
                         }
                     }
 
-                    Entry::Vacant(_e) => { continue; }
+                    Entry::Vacant(_e) => {
+                        continue;
+                    }
                 }
             }
 
             index += 1;
         }
         mask
+    }
+
+    pub fn display_mask_to_console(guess: &Box<Guess>) {
+        for (c, l) in guess.mask.into_iter().zip(guess.word.chars()) {
+            match c {
+                Correctness::Correct => {
+                    print!("{} ", l.to_string().green());
+                }
+
+                Correctness::Misplaced => {
+                    print!("{} ", l.to_string().yellow());
+                }
+                Correctness::Wrong => {
+                    print!("{} ", l.to_string().white())
+                }
+            }
+        }
     }
 }
 
@@ -132,82 +160,13 @@ impl Guesser for Player {
             word: user_input.to_owned(),
             mask: _correct_vec.to_owned(),
         });
+
         Ok(guess_value)
     }
-    
-    fn rate_words_by_bits_of_info(&mut self, dictionary: &'static str) -> HashSet<String, f64> {
+
+    fn rate_words_by_bits_of_info(&mut self, _dictionary: &'static str) -> HashSet<String, f64> {
         unimplemented!()
     }
-}
-
-pub fn evaluate<'a>(mut guess: &'a mut Box<Guess>, answer: &'static str) -> &'a [Correctness; 5] {
-    let mut pos = 0;
-    let mut string_lookup = HashMap::<char, Vec<i32>>::new();
-    for x in answer.chars() {
-        match string_lookup.entry(x) {
-            Entry::Vacant(e) => {
-                e.insert(vec![pos]);
-            }
-            Entry::Occupied(mut e) => {
-                e.get_mut().push(pos);
-            }
-        }
-        pos += 1;
-    }
-
-    //evaluate guess
-    let mut guess_pos: i8 = 0;
-    for i in guess.word.chars() {
-        if guess_pos == 5 {
-            break;
-        }
-        match string_lookup.entry(i) {
-            Entry::Occupied(mut e) => {
-                // check the position so we can populate mask correctness
-                let vec_positions = e.get_mut();
-                if vec_positions.is_empty() {
-                    guess.mask[guess_pos as usize] = Correctness::Wrong;
-                    break;
-                }
-                for i in 0..vec_positions.len() {
-                    if vec_positions[i] as i8 == guess_pos {
-                        guess.mask[guess_pos as usize] = Correctness::Correct;
-                        vec_positions.swap_remove(i);
-                    } else {
-                        // none of the logged positions were equal, so partial correct
-                        guess.mask[guess_pos as usize] = Correctness::Misplaced;
-                    }
-                }
-            }
-
-            Entry::Vacant(_e) => {
-                // mark mask as wrong
-                guess.mask[guess_pos as usize] = Correctness::Wrong;
-            }
-        }
-        guess_pos += 1;
-    }
-
-    &guess.mask
-}
-
-pub fn display_answer_correctness_to_console(guess: &Box<Guess>) {
-    // Color the letters and display to user.
-    let mut i: i8 = 0;
-    for c in guess.word.chars() {
-        if i == 5 {
-            break;
-        }
-        match guess.mask[i as usize] {
-            Correctness::Correct => print!("{} ", c.to_string().green()),
-            Correctness::Misplaced => print!("{} ", c.to_string().yellow()),
-            Correctness::Wrong => print!("{} ", c.to_string().white()),
-        }
-        i += 1;
-    }
-
-    // Displays correctness mask. delete later.
-    println!("{:?}", guess.mask);
 }
 
 impl Guesser for Agent {
@@ -260,8 +219,8 @@ pub fn play(answer: &'static str, mut guesser: Box<dyn Guesser>) {
             break;
         }
         let mut current_guess = guesser.guess(answer).expect("failed to construct guess");
-        evaluate(&mut current_guess, answer);
-        display_answer_correctness_to_console(&current_guess);
+        current_guess.mask = Correctness::compute(answer, current_guess.word.as_str());
+        Correctness::display_mask_to_console(&current_guess);
         guess_history.guesses.push(*current_guess);
         guesses += 1;
     }
@@ -274,7 +233,7 @@ mod tests {
     #[cfg(test)]
     mod correctness {
 
-    use crate::wordle::Correctness;
+        use crate::wordle::Correctness;
 
         #[test]
         fn regular_guess() {
@@ -285,7 +244,7 @@ mod tests {
         fn repeat_letters_guess() {
             assert_eq!(Correctness::compute("sally", "lllrr"), mask![M M W W W]);
         }
-        
+
         #[test]
         fn all_misplaced() {
             assert_eq!(Correctness::compute("edcba", "acbde"), mask![M M M M M]);
@@ -299,6 +258,21 @@ mod tests {
         #[test]
         fn all_wrong() {
             assert_eq!(Correctness::compute("abcde", "fhjki"), mask![W W W W W]);
+        }
+
+        #[test]
+        fn correct_misplaced_every_other() {
+            assert_eq!(Correctness::compute("abcde", "adcbe"), mask![C M C M C]);
+        }
+
+        #[test]
+        fn four_correct_one_wrong() {
+            assert_eq!(Correctness::compute("abcde", "abcdf"), mask![C C C C W]);
+        }
+
+        #[test]
+        fn some_correct_some_misplaced() {
+            assert_eq!(Correctness::compute("abcde", "abced"), mask![C C C M M]);
         }
     }
 }
