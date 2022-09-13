@@ -4,6 +4,9 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
+use std::collections::HashMap;
+use crate::wordle::{Guess, Correctness};
+
 
 // Simple utility function.
 // used this function to strip unwanted numbers from original dictionary file.
@@ -36,10 +39,70 @@ pub fn grab_rand_word_from_dict(dictionary: &str) -> &str {
     words[rand_num]
 }
 
+pub fn filter_possible_answers(guess: &Box<Guess>, dictionary: &'static str) -> Vec<&'static str> {
+        // Cases to remove
+        // 1. str1 and str2 chars dont match and guess mask marked Correct
+        // 2. str1 and str2 match and guess mask marked Wrong
+        // 3. str2 (string in dictionary) does not have all misplaced chars
+        // 4. str2 (string in dictionary) is missing all Correct chars
+        //
+        let mut potential_answers = Vec::<&'static str>::new();
+        let words :Vec<&'static str> = dictionary.split_whitespace().collect();
+        for word in words {
+            let is_possible_answer = is_potential_answer(guess, &word);
+            match is_possible_answer {
+                true => {
+                    potential_answers.push(word);
+                },
+
+                false => continue,
+            }
+        }
+        
+        potential_answers
+}
+
+pub fn is_potential_answer(guess: &Box<Guess>, current_word: &str) -> bool {
+  
+    let dict_word = current_word.as_bytes();
+    let guess_word = guess.word.as_bytes();
+
+
+    // Pre process current word for misplaced character lookups.
+    let mut str_histogram = HashMap::<u8, i32>::new();
+    for c in dict_word {
+        *str_histogram.entry(*c).or_insert(1) += 1;
+    }    
+
+    //Now check for Wrong characters that match and correct chacters that don't exist'
+    //Otherwise we look for misplaced characters before we clear the word for possible answers.
+    for i in 0..5 {
+        if guess.mask[i] == Correctness::Correct && guess_word[i] != dict_word[i] {
+            return false;
+        } else if guess.mask[i] == Correctness::Wrong && guess_word[i] == dict_word[i] {
+            return false;
+        } else {
+            if let Some(key) = str_histogram.get_mut(&guess_word[i]) {
+                if *key <= 0 {
+                    return false;
+                }
+
+                *key -= 1;
+            }
+        }
+         
+    }
+
+    true  
+}
+
 #[cfg(test)]
 mod test {
     use super::grab_rand_word_from_dict;
-
+    use super::filter_possible_answers;
+    use crate::wordle::Correctness;
+    use crate::wordle::Guess;
+    use crate::mask;
     const WORDS: &str = include_str!("../res/dictionary.txt");
     const TEST_WORDS: &str = include_str!("../res/tests/slice_grab_test.txt");
 
@@ -61,5 +124,13 @@ mod test {
             }
         }
         assert_eq!(words_match, [sample_word, sample_word]);
+    }
+    
+    #[test]
+    pub fn filter_out_possible_answer_test_basic() {
+        let test_guess = Guess { word: String::from("words"), mask: mask![C C C W W], is_correct: false };
+        let boxed_guess = Box::new(test_guess);
+        let results = filter_possible_answers(&boxed_guess, TEST_WORDS); 
+        assert_eq!(results, ["worry"]);
     }
 }

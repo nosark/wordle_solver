@@ -2,6 +2,7 @@ use colored::Colorize;
 use std::collections::hash_map::Entry;
 use std::error::Error;
 use std::{collections::HashMap, collections::HashSet, io::stdin};
+
 /// Enum represents assigned score values to each letter
 /// in relation to a guess. Each guess can have a score of :
 /// Correct : The letter is a subset of the answer and in the correct position.
@@ -31,6 +32,7 @@ pub enum Correctness {
 /// where both arrays are equal to each other, using the shorthand out of code
 /// cleanliness and readability.
 ///
+#[macro_export]
 macro_rules! mask {
     (C) => { Correctness::Correct };
     (M) => { Correctness::Misplaced };
@@ -111,18 +113,24 @@ pub struct GuessHistory {
 #[derive(Debug)]
 pub struct Guess {
     /// A guess attempt being made by the player.
-    word: String,
+    pub word: String,
     /// A mask masks the word for each guess, color coding
     /// each letter to represent some form of Correctness (ie: Correct, Misplaced, Wrong)
     /// in accordance to the letter of each word being a subset of the answer, and whether
     /// or not the letter is in its correct position relative to the answer.
-    mask: [Correctness; 5],
+    pub mask: [Correctness; 5],
+    pub is_correct: bool,
 }
 
 impl Guess {
     pub fn new(word: String, mask: [Correctness; 5]) -> Self {
-        Guess { word, mask }
+        Guess { word, mask, is_correct: false }
     }
+}
+
+pub struct WordleRound {
+    guess_history: GuessHistory,
+    did_win_round: bool,
 }
 
 #[derive(Debug)]
@@ -159,22 +167,15 @@ impl Guesser for Player {
         let guess_value = Box::new(Guess {
             word: user_input.to_owned(),
             mask: _correct_vec.to_owned(),
+            is_correct: false,
         });
 
         Ok(guess_value)
-    }
-
-    fn rate_words_by_bits_of_info(&mut self, _dictionary: &'static str) -> HashSet<String, f64> {
-        unimplemented!()
     }
 }
 
 impl Guesser for Agent {
     fn guess(&mut self, _answer: &'static str) -> Result<Box<Guess>, Box<dyn Error>> {
-        unimplemented!()
-    }
-
-    fn rate_words_by_bits_of_info(&mut self, _dictionary: &'static str) -> HashSet<String, f64> {
         unimplemented!()
     }
 }
@@ -190,14 +191,12 @@ impl PlayerFactory {
 
 pub trait Guesser {
     fn guess(&mut self, answer: &'static str) -> Result<Box<Guess>, Box<dyn Error>>;
-    fn rate_words_by_bits_of_info(&mut self, dictionary: &'static str) -> HashSet<String, f64>;
 }
 
 /// The play function allows the user to attempt six guesses to
 /// try and guess the answer the game has selected from the dictionary.
 /// the guesser can be a real user or an agent that plays the game itself.
-pub fn play(answer: &'static str, mut guesser: Box<dyn Guesser>) {
-    let mut guesses = 0;
+pub fn play(answer: &'static str, mut guesser: Box<dyn Guesser>) -> Box<WordleRound>{
     let mut guess_history = GuessHistory {
         guesses: Vec::<Guess>::new(),
     };
@@ -213,18 +212,18 @@ pub fn play(answer: &'static str, mut guesser: Box<dyn Guesser>) {
     "
     );
 
-    loop {
-        if guesses == 6 {
-            println!("the word was: {}", answer);
-            break;
-        }
+   for _i in 0..5 { 
         let mut current_guess = guesser.guess(answer).expect("failed to construct guess");
         current_guess.mask = Correctness::compute(answer, current_guess.word.as_str());
         Correctness::display_mask_to_console(&current_guess);
+        if current_guess.word.eq(answer) {
+            current_guess.is_correct = true;
+            return Box::new(WordleRound {guess_history, did_win_round: true});
+        }
         guess_history.guesses.push(*current_guess);
-        guesses += 1;
     }
-    println!("Thank you for playing!");
+
+    Box::new(WordleRound{ guess_history, did_win_round: false})
 }
 
 #[cfg(test)]
