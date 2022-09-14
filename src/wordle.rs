@@ -124,7 +124,11 @@ pub struct Guess {
 
 impl Guess {
     pub fn new(word: String, mask: [Correctness; 5]) -> Self {
-        Guess { word, mask, is_correct: false }
+        Guess {
+            word,
+            mask,
+            is_correct: false,
+        }
     }
 }
 
@@ -196,7 +200,7 @@ pub trait Guesser {
 /// The play function allows the user to attempt six guesses to
 /// try and guess the answer the game has selected from the dictionary.
 /// the guesser can be a real user or an agent that plays the game itself.
-pub fn play(answer: &'static str, mut guesser: Box<dyn Guesser>) -> Box<WordleRound>{
+pub fn play(answer: &'static str, mut guesser: Box<dyn Guesser>) -> Box<WordleRound> {
     let mut guess_history = GuessHistory {
         guesses: Vec::<Guess>::new(),
     };
@@ -212,18 +216,24 @@ pub fn play(answer: &'static str, mut guesser: Box<dyn Guesser>) -> Box<WordleRo
     "
     );
 
-   for _i in 0..5 { 
+    for _i in 0..5 {
         let mut current_guess = guesser.guess(answer).expect("failed to construct guess");
         current_guess.mask = Correctness::compute(answer, current_guess.word.as_str());
         Correctness::display_mask_to_console(&current_guess);
         if current_guess.word.eq(answer) {
             current_guess.is_correct = true;
-            return Box::new(WordleRound {guess_history, did_win_round: true});
+            return Box::new(WordleRound {
+                guess_history,
+                did_win_round: true,
+            });
         }
         guess_history.guesses.push(*current_guess);
     }
 
-    Box::new(WordleRound{ guess_history, did_win_round: false})
+    Box::new(WordleRound {
+        guess_history,
+        did_win_round: false,
+    })
 }
 
 #[cfg(test)]
