@@ -79,13 +79,15 @@ pub fn is_potential_answer(guess: &Box<Guess>, current_word: &str) -> bool {
             return false;
         } else if guess.mask[i] == Correctness::Wrong && guess_word[i] == dict_word[i] {
             return false;
-        } else {
+        } else if guess.mask[i] == Correctness::Misplaced {
             if let Some(key) = str_histogram.get_mut(&guess_word[i]) {
                 if *key <= 0 {
                     return false;
                 }
 
                 *key -= 1;
+            } else {
+                return false;
             }
         }
     }
