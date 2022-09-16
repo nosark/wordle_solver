@@ -171,4 +171,40 @@ mod test {
         let results = filter_possible_answers(&test_guess, TEST_WORDS);
         assert_eq!(results, ["barks"]);
     }
+
+    #[test]
+    pub fn filter_possible_answers_correct_and_misplaced() {
+        let test_guess = Box::new(Guess {
+            word: String::from("woryr"),
+            mask: mask! [C C C M M],
+            is_correct: false,
+        });
+        let results = filter_possible_answers(&test_guess, TEST_WORDS);
+        assert_eq!(results, ["worry"]);
+    }
+
+    #[test]
+    pub fn filter_possible_answers_correct_and_wrong() {
+        let test_guess = Box::new(Guess {
+            word: String::from("warxy"),
+            mask: mask! [C W C W C],
+            is_correct: false,
+        });
+
+        let results = filter_possible_answers(&test_guess, TEST_WORDS);
+        assert_eq!(results, ["worry"]);
+    }
+
+    #[test]
+    pub fn filter_possible_answers_correct_and_not_in_dictionary() {
+        let test_guess = Box::new(Guess {
+            word: String::from("ccccc"),
+            mask: mask! [C C C C C],
+            is_correct: true,
+        });
+
+        let empty_vec = Vec::<&str>::new();
+        let results = filter_possible_answers(&test_guess, TEST_WORDS);
+        assert_eq!(results, empty_vec);
+    }
 }
