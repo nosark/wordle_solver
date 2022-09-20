@@ -63,6 +63,7 @@ impl Correctness {
         for (i, j) in answer.chars().zip(guess.chars()) {
             if i == j && *string_histogram.get(&j).unwrap() > 0 {
                 mask[index as usize] = Correctness::Correct;
+                *string_histogram.get_mut(&j).unwrap() -= 1;
             } else {
                 match string_histogram.entry(j) {
                     Entry::Occupied(mut e) => {
@@ -200,7 +201,11 @@ pub trait Guesser {
 /// The play function allows the user to attempt six guesses to
 /// try and guess the answer the game has selected from the dictionary.
 /// the guesser can be a real user or an agent that plays the game itself.
-pub fn play(answer: &'static str, mut guesser: Box<dyn Guesser>) -> Box<WordleRound> {
+/// The play function allows the user to attempt six guesses to
+/// try and guess the answer the game has selected from the dictionary.
+/// the guesser can be a real user or an agent that plays the game itself.
+pub fn play(answer: &'static str, mut guesser: Box<dyn Guesser>) {
+    let mut guesses = 0;
     let mut guess_history = GuessHistory {
         guesses: Vec::<Guess>::new(),
     };
@@ -211,29 +216,23 @@ pub fn play(answer: &'static str, mut guesser: Box<dyn Guesser>) -> Box<WordleRo
         letter word dictionary. If you get a letter correct, but out of position\n
         it will be marked in yellow, if you get the letter and position correct\n
         in green, and white if the letter is completely incorrect.\n
-
         Good Luck and Start Guessing!
     "
     );
-
-    for _i in 0..5 {
+    println!("{} is the answer", &answer);
+    loop {
+        if guesses == 6 {
+            println!("the word was: {}", answer);
+            break;
+        }
         let mut current_guess = guesser.guess(answer).expect("failed to construct guess");
+        println!("guess number {}", guesses);
         current_guess.mask = Correctness::compute(answer, current_guess.word.as_str());
         Correctness::display_mask_to_console(&current_guess);
-        if current_guess.word.eq(answer) {
-            current_guess.is_correct = true;
-            return Box::new(WordleRound {
-                guess_history,
-                did_win_round: true,
-            });
-        }
         guess_history.guesses.push(*current_guess);
+        guesses += 1;
     }
-
-    Box::new(WordleRound {
-        guess_history,
-        did_win_round: false,
-    })
+    println!("Thank you for playing!");
 }
 
 #[cfg(test)]
@@ -247,6 +246,11 @@ mod tests {
         #[test]
         fn regular_guess() {
             assert_eq!(Correctness::compute("abcde", "abcde"), mask![C C C C C]);
+        }
+
+        #[test]
+        fn repeat_letters_after_correct_none_should_be_misplaced() {
+            assert_eq!(Correctness::compute("pleon", "poops"), mask![C M W W W]);
         }
 
         #[test]
