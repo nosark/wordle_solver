@@ -84,21 +84,30 @@ impl Correctness {
         mask
     }
 
-    pub fn display_mask_to_console(guess: &Box<Guess>) {
+    pub fn display_mask_as_colorized_vec(guess: &Box<Guess>) {
+        let mut colorized_vec = vec![];
         for (c, l) in guess.mask.into_iter().zip(guess.word.chars()) {
             match c {
                 Correctness::Correct => {
-                    print!("{} ", l.to_string().green());
+                    colorized_vec.push(l.to_string().black().on_green());
                 }
 
                 Correctness::Misplaced => {
-                    print!("{} ", l.to_string().yellow());
+                    colorized_vec.push(l.to_string().black().on_yellow());
                 }
                 Correctness::Wrong => {
-                    print!("{} ", l.to_string().white())
+                    colorized_vec.push(l.to_string().black().on_red());
                 }
             }
         }
+        println!(
+            "{} {} {} {} {}",
+            colorized_vec[0],
+            colorized_vec[1],
+            colorized_vec[2],
+            colorized_vec[3],
+            colorized_vec[4]
+        );
     }
 }
 
@@ -228,7 +237,7 @@ pub fn play(answer: &'static str, mut guesser: Box<dyn Guesser>) {
         let mut current_guess = guesser.guess(answer).expect("failed to construct guess");
         println!("guess number {}", guesses);
         current_guess.mask = Correctness::compute(answer, current_guess.word.as_str());
-        Correctness::display_mask_to_console(&current_guess);
+        Correctness::display_mask_as_colorized_vec(&current_guess);
         guess_history.guesses.push(*current_guess);
         guesses += 1;
     }
