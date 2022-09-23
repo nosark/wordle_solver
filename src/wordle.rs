@@ -1,7 +1,7 @@
 use colored::Colorize;
 use std::collections::hash_map::Entry;
 use std::error::Error;
-use std::{collections::HashMap, collections::HashSet, io::stdin};
+use std::{collections::HashMap, io::stdin};
 
 /// Enum represents assigned score values to each letter
 /// in relation to a guess. Each guess can have a score of :

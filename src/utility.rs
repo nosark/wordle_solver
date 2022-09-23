@@ -106,11 +106,6 @@ mod test {
     const TEST_WORDS: &str = include_str!("../res/tests/slice_grab_test.txt");
 
     #[test]
-    pub fn grab_random_word_as_slice() {
-        unimplemented!()
-    }
-
-    #[test]
     pub fn grab_random_word_vec() {
         let words: Vec<&str> = TEST_WORDS.split_whitespace().collect();
 
