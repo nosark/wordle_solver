@@ -30,8 +30,6 @@ pub fn filter_text_from_file(file_path: &Path, new_file_path: &Path) -> Result<(
     Ok(())
 }
 
-/// Grabs a slice from a &str, randomly selecting a word from
-/// the dictionary.
 pub fn grab_rand_word_from_dict(dictionary: &str) -> &str {
     let words: Vec<&str> = dictionary.split_whitespace().collect();
     let rand_num = thread_rng().gen_range(0..words.len());
@@ -39,13 +37,6 @@ pub fn grab_rand_word_from_dict(dictionary: &str) -> &str {
 }
 
 pub fn filter_possible_answers(guess: &Box<Guess>, dictionary: &'static str) -> Vec<&'static str> {
-    // Cases to remove
-    // 1. str1 and str2 chars dont match and guess mask marked Correct
-    // 2. str1 and str2 match and guess mask marked Wrong
-    // 3. str2 (string in dictionary) does not have all misplaced chars
-    // 4. str2 (string in dictionary) is missing all Correct chars
-    // 5. TODO: need to account for misplaced letters and how to filter
-    // out words that don't contain the proper amount correctly.
     let mut potential_answers = Vec::<&'static str>::new();
     let words: Vec<&'static str> = dictionary.split_whitespace().collect();
     for word in words {
@@ -66,14 +57,11 @@ pub fn is_potential_answer(guess: &Box<Guess>, current_word: &str) -> bool {
     let dict_word = current_word.as_bytes();
     let guess_word = guess.word.as_bytes();
 
-    // Pre process current word for misplaced character lookups.
     let mut str_histogram = HashMap::<u8, i32>::new();
     for c in dict_word {
         *str_histogram.entry(*c).or_insert(1) += 1;
     }
 
-    //Now check for Wrong characters that match and correct chacters that don't exist'
-    //Otherwise we look for misplaced characters before we clear the word for possible answers.
     for i in 0..5 {
         if guess.mask[i] == Correctness::Correct && guess_word[i] != dict_word[i] {
             return false;
